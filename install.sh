@@ -5,10 +5,22 @@ set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SETTINGS="$HOME/.claude/settings.json"
 
-read -r -p "Also set prompt cache TTL to 1h (longer cache, costs more per write)? [y/N] " SET_TTL
-SET_TTL="${SET_TTL:-n}"
-
 PY="$(command -v python3)"
+CURRENT_TTL="$("$PY" -c "
+import json, os
+p = os.path.expanduser('$SETTINGS')
+d = json.load(open(p)) if os.path.exists(p) else {}
+print(d.get('promptCacheTtl', '5m'))
+")"
+
+SET_TTL="n"
+if [ "$CURRENT_TTL" != "1h" ]; then
+    read -r -p "Prompt cache TTL is currently '$CURRENT_TTL'. Set to 1h (longer cache, costs more per write)? [y/N] " SET_TTL
+    SET_TTL="${SET_TTL:-n}"
+else
+    echo "Prompt cache TTL already 1h, leaving as is."
+fi
+
 "$PY" - "$SETTINGS" "$DIR" "$SET_TTL" <<'EOF'
 import json, os, sys
 settings_path, pkg_dir, set_ttl = sys.argv[1], sys.argv[2], sys.argv[3]
